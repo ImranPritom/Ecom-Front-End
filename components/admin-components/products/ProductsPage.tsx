@@ -19,7 +19,7 @@ interface ProductData {
   stock: number;
   created_at: string;
   image_url: string[];
-  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
+  status: "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK";
 }
 
 export default function ProductsPage() {
@@ -36,9 +36,8 @@ export default function ProductsPage() {
     queryFn: () => getProducts(currentPage, pageSize, query),
   });
 
-
-   //total pages for pagination
-   const totalPaginationPages = data?.pagination.totalPages;
+  //total pages for pagination
+  const totalPaginationPages = data?.pagination.totalPages;
 
   // Handle pagination and page size changes
   const onPageChange = (
@@ -76,8 +75,8 @@ export default function ProductsPage() {
     }
   };
 
-   // State to manage the visibility of the filter sidebar
-   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
+  // State to manage the visibility of the filter sidebar
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
 
   //table columns
   const tableHeaderColumn = [
@@ -124,19 +123,20 @@ export default function ProductsPage() {
           placeholder="Search"
         />
         <div className="flex gap-4 justify-end w-full">
-        <button
-        onClick={() => setIsFilterSidebarOpen(true)}
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 bg-white text-textdark3 hover:bg-gray-100 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-primary">
-          <FiFilter className="w-5 h-5" />
-          <span className="hidden sm:inline">Filter</span>
-        </button>
-        <button
-          onClick={() => router.push("/admin/products/create")}
-          className="bg-primary w-full sm:w-1/2 md:w-1/4 lg:w-40 text-white px-5 py-2.5 rounded-md shadow-md hover:bg-primary/95 transition"
-        >
-          + Add Product
-        </button>
+          <button
+            onClick={() => setIsFilterSidebarOpen(true)}
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 bg-white text-textdark3 hover:bg-gray-100 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <FiFilter className="w-5 h-5" />
+            <span className="hidden sm:inline">Filter</span>
+          </button>
+          <button
+            onClick={() => router.push("/admin/products/create")}
+            className="bg-primary w-full sm:w-1/2 md:w-1/4 lg:w-40 text-white px-5 py-2.5 rounded-md shadow-md hover:bg-primary/95 transition"
+          >
+            + Add Product
+          </button>
         </div>
       </header>
       {/* Main Section */}
@@ -160,7 +160,6 @@ export default function ProductsPage() {
                       >
                         {tableHeaderData.column}
                       </th>
-
                     )
                   )}
                   <th className="px-6 py-3 text-right text-base font-semibold">
@@ -172,7 +171,9 @@ export default function ProductsPage() {
                 {data.data.map((productData: ProductData) => (
                   <tr key={productData.id} className="border-t">
                     <td className="px-6 py-4 text-sm text-textdark4">
-                      {productData.image_url && productData.image_url.length > 0 && productData.image_url[0] ? (
+                      {productData.image_url &&
+                      productData.image_url.length > 0 &&
+                      productData.image_url[0] ? (
                         <div className="group relative inline-block">
                           <Image
                             src={productData.image_url[0]}
@@ -185,7 +186,9 @@ export default function ProductsPage() {
                       ) : (
                         <div className="inline-flex w-12 h-12 items-center justify-center rounded-full bg-gray-200 text-gray-400 text-xl relative group cursor-default border border-gray-200">
                           <FaRegImage />
-                          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">No Image Available</span>
+                          <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                            No Image Available
+                          </span>
                         </div>
                       )}
                     </td>
@@ -203,15 +206,25 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-textdark4">
                       <span
-                        className={`inline-block px-3 py-1 rounded-xl border font-semibold text-xs ${getStatusBadge(productData.status)}`}
+                        className={`inline-block px-3 py-1 rounded-xl border font-semibold text-xs ${getStatusBadge(
+                          productData.status
+                        )}`}
                       >
                         {productData.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-textdark4">
-                      {new Date(productData.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      {new Date(productData.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
                       <br />
-                      {new Date(productData.created_at).toISOString().split('T')[0]}
+                      {
+                        new Date(productData.created_at)
+                          .toISOString()
+                          .split("T")[0]
+                      }
                     </td>
                     <td className="px-6 py-4 text-sm text-textdark4 text-right">
                       <button className="text-primary font-medium transition mr-4">
