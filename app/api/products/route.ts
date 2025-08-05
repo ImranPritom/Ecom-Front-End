@@ -1,101 +1,95 @@
 import prisma from "@/app/lib/prisma";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-
-interface Products {
-  id: string;
-  product_name: string;
-  price: number;
-  stock: number;
-  is_featured: boolean;
-  is_new_arrival: boolean;
-  status: string;
-  shipping_cost: number;
-  sale_price: number;
-  supplier_name: string;
-  category_name: string;
-  brand_name: string;
-  image_url: string[];
-  created_at: string;
-}
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req });
 
-  if (!token) {
+  if (!token || !token.id) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   const adminId = Number(token.id);
-  if (!adminId) {
-    return NextResponse.json(
-      { message: "Unauthorized: Missing user ID in token" },
-      { status: 401 }
-    );
-  }
-
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get("page") || "1");
   const pageSize = parseInt(url.searchParams.get("pageSize") || "10");
   const query = url.searchParams.get("query")?.trim().toLowerCase() || "";
-  const offset: number = (page - 1) * pageSize;
+  const offset = (page - 1) * pageSize;
 
   try {
-    // Total count with query
-    const totalProductsFetch: [{ count: number }] = await prisma.$queryRaw`
-      SELECT COUNT(product.id) as count
-      FROM product
-      WHERE product.user_id = ${adminId}
-      AND(LOWER(product.product_name) LIKE ${`%${query}%`} )
-    `;
+    // Build where condition
+    const whereCondition = {
+      user_id: adminId,
+      product_name: {
+        contains: query,
+        mode: "insensitive" as Prisma.QueryMode,
+      },
+    };
 
-    const products: Products[] = await prisma.$queryRaw`
-      SELECT
-        product.id,
-        product.product_name,
-        product.price,
-        product.stock,
-        product.is_featured,
-        product.is_new_arrival,
-        product.status,
-        product.shipping_cost,
-        product.sale_price,
-        supplier.supplier_name,
-        category.category_name,
-        brand.brand_name,
-        array_agg(product_image.image_url) AS image_url,
-        product.created_at
-      FROM product
-      LEFT JOIN product_image ON product.id = product_image.product_id
-      LEFT JOIN supplier ON product.supplier_id = supplier.id
-      LEFT JOIN category ON product.category_id = category.id
-      LEFT JOIN brand ON product.brand_id = brand.id
-      WHERE product.user_id = ${adminId}
-      AND (
-        LOWER(product.product_name) LIKE ${`%${query}%`} OR
-        LOWER(supplier.supplier_email) LIKE ${`%${query}%`} OR
-        LOWER(supplier.supplier_phone_number) LIKE ${`%${query}%`} OR
-        LOWER(supplier.supplier_country) LIKE ${`%${query}%`} OR
-        LOWER(supplier.supplier_city) LIKE ${`%${query}%`} OR
-        LOWER(supplier.supplier_company_name) LIKE ${`%${query}%`} OR
-        LOWER(supplier.supplier_address) LIKE ${`%${query}%`}
-      )
-      GROUP BY
-        product.id,
-        supplier.supplier_name,
-        category.category_name,
-        brand.brand_name
-      ORDER BY
-        product.product_name
-      LIMIT ${pageSize} OFFSET ${offset}
-    `;
+    // Total count
+    const totalProducts = await prisma.product.count({
+      where: whereCondition,
+    });
 
-    const totalProducts = Number(totalProductsFetch[0].count);
+    // Fetch products with relations and images
+    const products = await prisma.product.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        product_name: true,
+        price: true,
+        stock: true,
+        is_featured: true,
+        is_new_arrival: true,
+        status: true,
+        shipping_cost: true,
+        sale_price: true,
+        supplier: {
+          select: {
+            supplier_name: true,
+          },
+        },
+        category: {
+          select: {
+            category_name: true,
+          },
+        },
+        brand: {
+          select: {
+            brand_name: true,
+          },
+        },
+        product_image: {
+          select: {
+            image_url: true,
+          },
+        },
+        created_at: true,
+      },
+      skip: offset,
+      take: pageSize,
+      orderBy: {
+        product_name: "asc",
+      },
+    });
+
+    const formattedProducts = products.map((product) => ({
+      id: product.id,
+      product_name: product.product_name,
+      brand_name: product.brand?.brand_name ?? null,
+      price: product.price.toNumber(),
+      stock: product.stock,
+      status: product.status,
+      image_url: product.product_image.map((img) => img.image_url),
+      created_at: product.created_at.toISOString(),
+    }));
+
     const totalPages = Math.ceil(totalProducts / pageSize);
 
     return NextResponse.json({
       message: "success",
-      data: products,
+      data: formattedProducts,
       pagination: {
         currentPage: page,
         pageSize,
@@ -105,7 +99,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching products:", error);
-
     return NextResponse.json(
       { message: "Error fetching products" },
       { status: 500 }
