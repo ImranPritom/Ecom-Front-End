@@ -1,44 +1,63 @@
 import prisma from "@/app/lib/prisma";
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-interface Category {
-  id: string;
-  category_name: string;
+// ✅ Zod schema for category update
+const CategorySchema = z.object({
+  category_name: z.string().min(1, "Category name is required"),
+});
+
+// ✅ Auth & role check helper
+async function checkAuth(req: NextRequest) {
+  const token = await getToken({ req });
+  if (!token || !token.id) {
+    return {
+      error: NextResponse.json({ message: "Unauthorized" }, { status: 401 }),
+    };
+  }
+  if (token.role !== "admin") {
+    return {
+      error: NextResponse.json(
+        { message: "Forbidden Resource" },
+        { status: 403 }
+      ),
+    };
+  }
+  return { token };
 }
 
-//delete category
+// ✅ DELETE Category (Prisma ORM)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: number }> }
 ) {
-  const id = (await params).id;
-  // Extract token from the request
-  const token = await getToken({ req });
+  const { error } = await checkAuth(req);
+  if (error) return error;
 
-  // Validate token
-  //   if (!token) {
-  //     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  //   }
-
-  //role
-  //   const role = token.role;
-  //   if (role !== "admin") {
-  //     return NextResponse.json(
-  //       {
-  //         message: "Forbidden Resource",
-  //       },
-  //       {
-  //         status: 403,
-  //       }
-  //     );
-  //   }
+  const id = Number((await params).id);
 
   try {
-    //check if category exist and delete
-    const deleteResult = await deleteCategory(id);
-    return deleteResult;
+    const existingCategory = await prisma.category.findUnique({
+      where: { id: id },
+      select: { id: true, category_name: true },
+    });
+
+    if (!existingCategory) {
+      return NextResponse.json(
+        { message: "No category found to delete" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.category.delete({ where: { id } });
+
+    return NextResponse.json(
+      { message: "Category deleted successfully" },
+      { status: 200 }
+    );
   } catch (error) {
+    console.error("Error deleting category:", error);
     return NextResponse.json(
       { message: "Error deleting category" },
       { status: 500 }
@@ -46,132 +65,60 @@ export async function DELETE(
   }
 }
 
-//helper function to delete a category
-async function deleteCategory(categoryId: string) {
-  //check if category exist
-  const existingCategory: Category[] = await prisma.$queryRaw`
-    SELECT id,category_name
-    FROM category
-    WHERE category.id = ${categoryId}::uuid
-  `;
-
-  //if no category found
-  if (existingCategory.length < 1) {
-    return NextResponse.json(
-      {
-        message: "No category found to delete",
-      },
-      {
-        status: 404,
-      }
-    );
-  }
-
-  //delete the category
-  await prisma.$executeRaw`
-    DELETE FROM category
-    WHERE category.id=${categoryId}::uuid
-  `;
-
-  //return success response
-  return NextResponse.json(
-    {
-      message: "Category delete successfully",
-    },
-    {
-      status: 200,
-    }
-  );
-}
-
-//update category
+// ✅ UPDATE Category (Prisma ORM)
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: number }> }
 ) {
-  const id = (await params).id;
-  // Extract token from the request
-  const token = await getToken({ req });
+  const { error } = await checkAuth(req);
+  if (error) return error;
 
-  // Validate token
-  if (!token) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const id = Number((await params).id);
 
-  //role
-  const role = token.role;
-  if (role !== "admin") {
+  let data;
+  try {
+    const body = await req.json();
+    data = CategorySchema.parse(body);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: "Validation failed", errors: err.errors },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
-      {
-        message: "Forbidden Resource",
-      },
-      {
-        status: 403,
-      }
-    );
-  }
-
-  //body data
-  const bodyData = await req.json();
-  const { category_name } = bodyData;
-
-  if (!category_name) {
-    return NextResponse.json(
-      {
-        message: "Category Name required to update",
-      },
-      {
-        status: 400,
-      }
+      { message: "Invalid request body" },
+      { status: 400 }
     );
   }
 
   try {
-    const updateCategoryResult = await updateCategory(id, category_name);
-    return updateCategoryResult;
+    const existingCategory = await prisma.category.findUnique({
+      where: { id: id },
+      select: { id: true },
+    });
+
+    if (!existingCategory) {
+      return NextResponse.json(
+        { message: "No category found to update" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.category.update({
+      where: { id },
+      data: { category_name: data.category_name },
+    });
+
+    return NextResponse.json(
+      { message: "Category updated successfully" },
+      { status: 200 }
+    );
   } catch (error) {
+    console.error("Error updating category:", error);
     return NextResponse.json(
       { message: "Error updating category" },
       { status: 500 }
     );
   }
-}
-
-//helper function to update category
-async function updateCategory(categoryId: string, categoryName: string) {
-  //check if category exist
-  const existingCategory: Category[] = await prisma.$queryRaw`
-    SELECT id,category_name
-    FROM category
-    WHERE category.id = ${categoryId}::uuid
-`;
-
-  //if no category found
-  if (existingCategory.length < 1) {
-    return NextResponse.json(
-      {
-        message: "No category found to update",
-      },
-      {
-        status: 404,
-      }
-    );
-  }
-
-  //update the category
-  await prisma.$executeRaw`
-    UPDATE category
-    SET category_name = ${categoryName}
-    WHERE category.id = ${categoryId}::uuid
-  `;
-  //return succsess response
-
-  return NextResponse.json(
-    {
-      message: "Category updated successfully",
-    },
-    {
-      status: 201,
-    }
-  );
 }
