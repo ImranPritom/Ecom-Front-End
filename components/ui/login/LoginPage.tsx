@@ -4,28 +4,38 @@ import Image from "next/image";
 import { signIn } from "next-auth/react";
 import toast from "react-hot-toast";
 import { FaSpinner } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
     if (!email || !password) {
       setIsLoading(false);
       toast.error("Please fill all the fields");
       return;
     }
-    signIn("Credentials-Login", {
+
+    const result = await signIn("Credentials-Login", {
       email,
       password,
-      redirect: true,
+      redirect: false,
       callbackUrl: "/",
-    }).then(() => {
-      setIsLoading(false);
     });
+
+    setIsLoading(false);
+
+    if (result?.error) {
+      toast.error("Invalid email or password");
+    } else if (result?.ok) {
+      router.push(result.url || "/");
+    }
   };
 
   return (
