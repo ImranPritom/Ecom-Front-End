@@ -1,30 +1,40 @@
 "use client";
 import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { FaSpinner } from "react-icons/fa";
 
 export default function AdminLoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
     if (!email || !password) {
       setIsLoading(false);
       toast.error("Please fill all the fields");
       return;
     }
-    signIn("Credentials-Admin-Login", {
+
+    const result = await signIn("Credentials-Admin-Login", {
       email,
       password,
-      redirect: true,
+      redirect: false,
       callbackUrl: "/admin/dashboard",
-    }).then(() => {
-      setIsLoading(false);
     });
+
+    setIsLoading(false);
+
+    if (result?.error) {
+      toast.error("Invalid email or password");
+    } else if (result?.ok) {
+      router.push(result.url || "/admin/dashboard");
+    }
   };
 
   return (
