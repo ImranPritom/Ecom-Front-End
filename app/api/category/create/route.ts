@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   try {
     await prisma.$queryRaw`
       INSERT INTO category(category_name , category_image_url, user_id)
-      VALUES(${category_name} , ${imageUrl} , ${adminId}::uuid)
+      VALUES(${category_name} , ${imageUrl} , ${adminId})
     `;
 
     return NextResponse.json(
